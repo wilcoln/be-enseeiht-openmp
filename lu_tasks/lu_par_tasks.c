@@ -12,6 +12,9 @@ void lu_par_tasks(Matrix A, info_type info){
   trace_init();
   #pragma omp parallel
   {
+  #pragma omp master 
+  {
+
     for(i=0; i<info.NB; i++){
       /* Do the panel */
       #pragma omp task depend(out:A[i])
@@ -19,15 +22,15 @@ void lu_par_tasks(Matrix A, info_type info){
         panel(A[i], i, info);
       }
       
-      #pragma omp for
       for(j=i+1; j<info.NB; j++){
         /* Do all the correspondint updates */
-        #pragma omp task depend(in:A[i], inout:A[j])
+        #pragma omp task depend(in:A[i]) depend(inout:A[j])
         {
           update(A[i], A[j], i, j, info);
         }
       }
     }
+  }
   }
   
   /* Do row permutations resulting from the numerical pivoting */

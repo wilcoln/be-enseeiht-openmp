@@ -38,22 +38,38 @@ double dnorm2_seq(double *x, int n){
 
 double dnorm2_par(double *x, int n){
   int i;
-  double res, scale, ssq, absxi;
+  double res, scale, ssq, absxi, myscale, myssq;
 
   scale = 0.0;
-  ssq   = 1.0;
-
-  for(i=0; i<n; i++){
+  ssq  = 1.0;
+#pragma omp parallel private(absxi, myssq, myscale)
+{
+   myscale = 0.0;
+   myssq   = 1.0;
+#pragma omp for
+    for(i=0; i<n; i++){
     if(x[i]!=0.0){
       absxi = fabs(x[i]);
-      if(scale < absxi){
-        ssq = 1.0 + ssq*pow(scale/absxi,2);
-        scale = absxi;
+      if(myscale < absxi){
+        myssq = 1.0 + myssq*pow(myscale/absxi,2);
+        myscale = absxi;
       } else {
-        ssq = ssq + pow(absxi/scale,2);
+        myssq = myssq + pow(absxi/myscale,2);
       }
     }
-  }
+}
+
+#pragma omp critical
+{
+if(myscale > scale){
+  ssq = myssq + ssq*pow(scale/myscale, 2);
+  scale = myscale;
+} else {
+  ssq = ssq + myssq*pow(myscale/scale, 2);
+}
+}
+}
+
 
   res = scale*sqrt(ssq);
 
