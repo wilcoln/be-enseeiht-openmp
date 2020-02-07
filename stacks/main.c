@@ -85,7 +85,8 @@ void stacks_par_critical(stack_t *stacks, int n){
 
   int s;
   
-  
+#pragma omp parallel private(s)
+{
   for(;;){
 
     /* Get the stack number s */
@@ -94,9 +95,13 @@ void stacks_par_critical(stack_t *stacks, int n){
     if(s==-1) break;
     
     /* Push some value on stack s */
-    stacks[s].elems[stacks[s].cnt++] = process();
-
+    #pragma omp critical
+    {
+        stacks[s].elems[stacks[s].cnt++] = process();
+          
+    }
   }
+}
 }
 
 
@@ -106,7 +111,8 @@ void stacks_par_atomic(stack_t *stacks, int n){
 
   int s;
   
-  
+  #pragma omp parallel private(s)
+{
   for(;;){
 
     /* Get the stack number s */
@@ -115,18 +121,26 @@ void stacks_par_atomic(stack_t *stacks, int n){
     if(s==-1) break;
     
     /* Push some value on stack s */
-    stacks[s].elems[stacks[s].cnt++] = process();
-
+    int t;
+     #pragma omp atomic capture
+    t  = stacks[s].cnt++;
+    stacks[s].elems[t] = process();
   }
+}
 }
 
 
 
 void stacks_par_locks(stack_t *stacks, int n){
 
-  int s;
-  
-  
+  int s, i;
+  omp_lock_t* locks = (omp_lock_t*)malloc(n*sizeof(omp_lock_t));
+  #pragma omp parallel private(s)   
+  {
+  #pragma omp for 
+  for(i = 0; i < n; i++)
+    omp_init_lock(locks+i);
+
   for(;;){
 
     /* Get the stack number s */
@@ -135,9 +149,15 @@ void stacks_par_locks(stack_t *stacks, int n){
     if(s==-1) break;
     
     /* Push some value on stack s */
-    stacks[s].elems[stacks[s].cnt++] = process();
+    int t = process();
+    omp_set_lock(locks + s);
+    stacks[s].elems[stacks[s].cnt++] = t;
+    omp_unset_lock(locks + s);
 
   }
- 
+  for(i = 0; i < n; i++)
+    omp_destroy_lock(locks+i);
+  }
+  free(locks);
 
 }

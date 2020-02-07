@@ -103,6 +103,7 @@ void matmul_compact_row(double **Ac, double *x, double *y, int n, int b){
     for(j=0; j<n; j++){
       for(i=j-b; i<j+b+1; i++){
         if(i>=0 || i<n) {
+          #pragma omp atomic update
           y[i] += Ac[i-j+b][j]*x[j];
         }
       }
